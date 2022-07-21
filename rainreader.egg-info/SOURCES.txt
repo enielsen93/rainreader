@@ -1,3 +1,4 @@
+README.md
 setup.py
 rainreader/__init__.py
 rainreader/rainreader.py

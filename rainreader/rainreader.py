@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import datetime  # time series management
 from datetime import datetime as dtnow  # get time of code
 import matplotlib.dates as dates  # time series management
