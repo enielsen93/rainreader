@@ -14,28 +14,28 @@ def __rolling_sum(intensity, window_size):
     ret = np.cumsum(intensity, axis=0, dtype=float)
     ret[window_size:] = ret[window_size:] - ret[:-window_size]
     return np.max(ret[window_size - 1:])
-    
+
 class KM2:
     __timeseries = None
-    
+
     def __init__(self, kmd_file_path, initial_loss = 0, concentration_time = 0, skip_flags = []):
         # Read KM2 file as string
         with open(kmd_file_path, 'r') as km2:
             km2Str = km2.readlines()
-    
+
         # Pre-compile regex search patterns
         eventstartlineRE = re.compile(r"^1 \d{8}")
         eventinfoRE = re.compile(
             r"^1 ?(\d{8}) {0,}(\d{4}) {1,}\d+ {1,}\d+ {1,}(\d+) {1,}([\d\.]+) {1,}([\w\d]+)")
         gaugeintRE = re.compile("([\d\.]+)")
-    
+
         # Definining vectors for event information
         eventstarttime = []  # The start time of each event
         gaugetime = []  # The time vector of the rain gauge
         gaugeint = []  # The intensity vector of the rain gauge in [mu m/s]
         timedelay = 0
         eventrejected = False
-    
+
         # Read the KM2 line by line
         for i, line in enumerate(km2Str):
             # If the line contains information about the event:
@@ -71,7 +71,7 @@ class KM2:
                 gaugetime.extend((np.arange(0, len(ints), dtype=float) +
                                   timedelay) / 60 / 24 + eventstarttime[-1])
                 timedelay += len(ints)
-                
+
         if initial_loss > 0:
             gauge_initial_loss = initial_loss
             import copy
@@ -85,18 +85,18 @@ class KM2:
                 gaugeintReduced[i] = max([0,gaugeint[i]-gauge_initial_loss*1e3/60])
                 gauge_initial_loss = max([gauge_initial_loss - gaugeint[i]*60/1000,0])
             gaugeint = gaugeintReduced
-        
+
         if concentration_time>0:
             gaugetime = [np.round(t*24.0*60) for t in gaugetime]
-            
+
             concentration_time = int(concentration_time)
             gaugetimePadded = []
             gaugeintPadded = []
             timeskips = np.concatenate(([-1],np.where(np.diff(gaugetime)>1.5)[0]))
-    
+
             for timeskipi in range(1,len(timeskips)):
                 gaugetimePadded.extend(gaugetime[timeskips[timeskipi-1]+1:timeskips[timeskipi]+1])
-                paddedTimes = [a+gaugetime[timeskips[timeskipi]] for a in 
+                paddedTimes = [a+gaugetime[timeskips[timeskipi]] for a in
                                         range(1,min([int((gaugetime[timeskips[timeskipi]+1]-gaugetime[timeskips[timeskipi]])),
                                                      concentration_time]))]
                 gaugetimePadded.extend(paddedTimes)
@@ -110,44 +110,44 @@ class KM2:
             gaugetime = gaugetimePadded
             gaugeint = gaugeintPadded
             # print(gaugeint)
-            
+
             gaugeintTA = np.zeros((len(gaugeint)))
-                
+
             for i in range(len(gaugeint)):
                 iStart = bisect.bisect(gaugetime, gaugetime[i]-concentration_time)
-    
+
                 gaugeintTA[i] = np.sum(gaugeint[iStart:i+1])/concentration_time
             gaugeint = gaugeintTA
             gaugetime = np.array([t/24/60 for t in gaugetime])
         self.gaugetime, self.gaugeint = np.asarray(gaugetime, dtype=float), np.asarray(gaugeint)
         self.rain_gauge_duration = (gaugetime[-1]-gaugetime[0])/365.25
-    
+
     @property
     def timeseries(self):
         if self.__timeseries is None:
             import pandas as pd
             self.__timeseries = pd.Series(self.gaugeint, index = dates.num2date(self.gaugetime))
         return self.__timeseries
-    
+
     def rainStatistics(self, time_aggregate_periods, merge_period = None):
         time_aggregate_periods = [int(t) for t in time_aggregate_periods]
-       
+
         gaugetime_minutes = np.int32(self.gaugetime * 24 * 60)
         mergePeriod = max(time_aggregate_periods) if merge_period is None else merge_period
         events_limits = np.where(np.int64(np.round(np.diff(gaugetime_minutes, n=1, axis=0)))>mergePeriod)[0].astype(int)
         events_startindex = np.hstack(([0], 1+events_limits))
         events_endindex = np.hstack((events_limits, len(gaugetime_minutes)))
-    
+
         rain_statistics = np.empty((len(events_startindex), len(time_aggregate_periods)+1), dtype = np.float32)
         for periodi, period in enumerate(time_aggregate_periods):
             rolling_sum = self.timeseries.rolling("%dS" % (period*60)).sum().values
-            
+
             for event_i in range(len(events_startindex)):
                 rain_statistics[event_i, periodi] = np.max(rolling_sum[events_startindex[event_i]:events_endindex[event_i]+1])/1000*60
         for event_i in range(len(events_startindex)):
-            rain_statistics[event_i, -1] = np.sum(self.gaugeint[events_startindex[event_i]:events_endindex[event_i]+1])/1000*60  
+            rain_statistics[event_i, -1] = np.sum(self.gaugeint[events_startindex[event_i]:events_endindex[event_i]+1])/1000*60
         return rain_statistics, np.transpose(np.vstack((events_startindex, events_endindex)))
-    
+
     def eventAccRain(self):
         eventidx = 0
         tminutes = np.int32(self.gaugetime * 24 * 60)
@@ -177,13 +177,14 @@ class KM2:
             # End time of this event
             j += 1
             eventidx += 1  # Change event index
-        return eventStartTime, RDAgg
+        return eventStartTime,
+
     def plot_IDF(self, time_aggregate_periods, rain_gauge_duration = None):
         if rain_gauge_duration is None:
             rain_gauge_duration = self.rain_gauge_duration
         import matplotlib.pyplot as plt
         rain_depth_aggregated, index = self.rainStatistics(time_aggregate_periods)
-    
+
         rain_depth_aggregated_sort = np.sort(rain_depth_aggregated, axis=0)
         plt.figure()
         for i in range(len(time_aggregate_periods)):
@@ -192,3 +193,8 @@ class KM2:
         plt.ylabel(r"Intensitet [μm/s]")
         plt.legend()
         plt.grid()
+        plt.show()
+
+if __name__ == '__main__':
+    km2 = KM2(r"\\files\Projects\RWA2022N000XX\RWA2022N00009\_Modtaget_modeller\Regnserier\Viby_godkendte_1979_2018.txt")
+    km2.plot_IDF([7, 30, 60],38)
