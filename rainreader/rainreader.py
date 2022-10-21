@@ -19,58 +19,62 @@ class KM2:
     __timeseries = None
 
     def __init__(self, kmd_file_path, initial_loss = 0, concentration_time = 0, skip_flags = []):
-        # Read KM2 file as string
-        with open(kmd_file_path, 'r') as km2:
-            km2Str = km2.readlines()
+        if type(kmd_file_path) is list or type(kmd_file_path) is tuple:
+            gaugetime = kmd_file_path[0]
+            gaugeint = kmd_file_path[1]
+        else:
+            # Read KM2 file as string
+            with open(kmd_file_path, 'r') as km2:
+                km2Str = km2.readlines()
 
-        # Pre-compile regex search patterns
-        eventstartlineRE = re.compile(r"^1 \d{8}")
-        eventinfoRE = re.compile(
-            r"^1 ?(\d{8}) {0,}(\d{4}) {1,}\d+ {1,}\d+ {1,}(\d+) {1,}([\d\.]+) {1,}([\w\d]+)")
-        gaugeintRE = re.compile("([\d\.]+)")
+            # Pre-compile regex search patterns
+            eventstartlineRE = re.compile(r"^1 \d{8}")
+            eventinfoRE = re.compile(
+                r"^1 ?(\d{8}) {0,}(\d{4}) {1,}\d+ {1,}\d+ {1,}(\d+) {1,}([\d\.]+) {1,}([\w\d]+)")
+            gaugeintRE = re.compile("([\d\.]+)")
 
-        # Definining vectors for event information
-        eventstarttime = []  # The start time of each event
-        gaugetime = []  # The time vector of the rain gauge
-        gaugeint = []  # The intensity vector of the rain gauge in [mu m/s]
-        timedelay = 0
-        eventrejected = False
+            # Definining vectors for event information
+            eventstarttime = []  # The start time of each event
+            gaugetime = []  # The time vector of the rain gauge
+            gaugeint = []  # The intensity vector of the rain gauge in [mu m/s]
+            timedelay = 0
+            eventrejected = False
 
-        # Read the KM2 line by line
-        for i, line in enumerate(km2Str):
-            # If the line contains information about the event:
-            if eventstartlineRE.search(line):
-                # Split the information into segments
-                eventinfo = eventinfoRE.match(line)
-                # If it's not rejected ( == 2 ), include it
-                # THIS IS NOW DISABLED: It doesn't appear like this feature works
-                if len(skip_flags) > 0 and any([1 for flag in skip_flags if flag in eventinfo.group(5)]):
-                    eventrejected = True
-                else:
-                    # Get the start time of the event
-                    eventstarttime.append(
-                        dates.date2num(
-                            datetime.datetime.strptime(
-                                eventinfo.group(1) +
-                                " " +
-                                eventinfo.group(2),
-                                "%Y%m%d %H%M")))
-                    # Remember that the next line will be the first registrered intensity for the event, so the first measurement can be excluded
-                    # It's not rejected, so don't reject the following measurements
-                    eventrejected = False
-                    if timedelay > 0:
-                        gaugeint.extend([0])
-                        gaugetime.extend([gaugetime[-1] + 1. / 60 / 24])
-                        timedelay = 0
-            # If the line does not contain information about the event, it must contain intensities.
-            # If it's not rejected, read the intensities
-            elif not eventrejected:
-                ints = list(map(float, gaugeintRE.findall(line)))
-                # Exclude the first measurement
-                gaugeint.extend(ints)
-                gaugetime.extend((np.arange(0, len(ints), dtype=float) +
-                                  timedelay) / 60 / 24 + eventstarttime[-1])
-                timedelay += len(ints)
+            # Read the KM2 line by line
+            for i, line in enumerate(km2Str):
+                # If the line contains information about the event:
+                if eventstartlineRE.search(line):
+                    # Split the information into segments
+                    eventinfo = eventinfoRE.match(line)
+                    # If it's not rejected ( == 2 ), include it
+                    # THIS IS NOW DISABLED: It doesn't appear like this feature works
+                    if len(skip_flags) > 0 and any([1 for flag in skip_flags if flag in eventinfo.group(5)]):
+                        eventrejected = True
+                    else:
+                        # Get the start time of the event
+                        eventstarttime.append(
+                            dates.date2num(
+                                datetime.datetime.strptime(
+                                    eventinfo.group(1) +
+                                    " " +
+                                    eventinfo.group(2),
+                                    "%Y%m%d %H%M")))
+                        # Remember that the next line will be the first registrered intensity for the event, so the first measurement can be excluded
+                        # It's not rejected, so don't reject the following measurements
+                        eventrejected = False
+                        if timedelay > 0:
+                            gaugeint.extend([0])
+                            gaugetime.extend([eventstarttime[-1] - 1. / 60 / 24])
+                            timedelay = 0
+                # If the line does not contain information about the event, it must contain intensities.
+                # If it's not rejected, read the intensities
+                elif not eventrejected:
+                    ints = list(map(float, gaugeintRE.findall(line)))
+                    # Exclude the first measurement
+                    gaugeint.extend(ints)
+                    gaugetime.extend((np.arange(0, len(ints), dtype=float) +
+                                      timedelay) / 60 / 24 + eventstarttime[-1])
+                    timedelay += len(ints)
 
         if initial_loss > 0:
             gauge_initial_loss = initial_loss
@@ -129,13 +133,17 @@ class KM2:
             self.__timeseries = pd.Series(self.gaugeint, index = dates.num2date(self.gaugetime))
         return self.__timeseries
 
-    def rainStatistics(self, time_aggregate_periods, merge_period = None):
-        time_aggregate_periods = [int(t) for t in time_aggregate_periods]
-
+    def rainStatistics(self, time_aggregate_periods = [], merge_period = None):
         gaugetime_minutes = np.int32(self.gaugetime * 24 * 60)
-        mergePeriod = max(time_aggregate_periods) if merge_period is None else merge_period
+
+        if len(time_aggregate_periods) == []:
+            merge_period = merge_period if merge_period else 30
+        else:
+            time_aggregate_periods = [int(t) for t in time_aggregate_periods]
+            mergePeriod = max(time_aggregate_periods) if merge_period is None else merge_period
+
         events_limits = np.where(np.int64(np.round(np.diff(gaugetime_minutes, n=1, axis=0)))>mergePeriod)[0].astype(int)
-        events_startindex = np.hstack(([0], 1+events_limits))
+        events_startindex = np.hstack(([0], events_limits+1))
         events_endindex = np.hstack((events_limits, len(gaugetime_minutes)))
 
         rain_statistics = np.empty((len(events_startindex), len(time_aggregate_periods)+1), dtype = np.float32)
@@ -196,5 +204,9 @@ class KM2:
         plt.show()
 
 if __name__ == '__main__':
-    km2 = KM2(r"\\files\Projects\RWA2022N000XX\RWA2022N00009\_Modtaget_modeller\Regnserier\Viby_godkendte_1979_2018.txt")
-    km2.plot_IDF([7, 30, 60],38)
+    km2 = KM2(r"C:\Papirkurv\Viby_godkendte_1979_2018.txt")
+    gaugetime,gaugeint = km2.gaugetime,km2.gaugeint
+    print(gaugetime[109:113])
+    print(gaugeint[109:113])
+    a,b = km2.rainStatistics()
+    print("Break")
