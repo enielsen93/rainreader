@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 
 import datetime  # time series management
-from datetime import datetime as dtnow  # get time of code
 import matplotlib.dates as dates  # time series management
 import numpy as np
 import re
 import os
 from subprocess import call
 import bisect  # math bisection method
+import dateutil.parser
 
 def __rolling_sum(intensity, window_size):
     window_size = min(len(intensity), window_size)
@@ -18,7 +18,7 @@ def __rolling_sum(intensity, window_size):
 class KM2:
     __timeseries = None
 
-    def __init__(self, kmd_file_path, initial_loss = 0, concentration_time = 0, skip_flags = []):
+    def __init__(self, kmd_file_path, initial_loss = 0, concentration_time = 0, skip_flags = [], date_criteria = None):
         if type(kmd_file_path) is list or type(kmd_file_path) is tuple:
             gaugetime = kmd_file_path[0]
             gaugeint = kmd_file_path[1]
@@ -75,6 +75,21 @@ class KM2:
                     gaugetime.extend((np.arange(0, len(ints), dtype=float) +
                                       timedelay) / 60 / 24 + eventstarttime[-1])
                     timedelay += len(ints)
+
+        if date_criteria:
+            date_criteria_dates = [None, None]
+            for i in range(len(date_criteria)):
+                if type(date_criteria[i]) is datetime.datetime:
+                    date_criteria_dates[i] = dates.date2num(date_criteria[i])
+                elif type(date_criteria[i]) is str:
+                    date_criteria_dates[i] = dates.date2num(dateutil.parser.parse(date_criteria[i]))
+                else:
+                    date_criteria_dates[i] = dates.date2num(dateutil.parser.parse(date_criteria[i]))
+
+            start_i = bisect.bisect_left(gaugetime, date_criteria_dates[0])
+            stop_i = bisect.bisect_right(gaugetime, date_criteria_dates[1])
+            gaugetime = gaugetime[start_i:stop_i]
+            gaugeint = gaugeint[start_i:stop_i]
 
         if initial_loss > 0:
             gauge_initial_loss = initial_loss
