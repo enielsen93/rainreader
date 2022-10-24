@@ -1,5 +1,5 @@
 # rainreader
-Python Package for reading KMD files from The Danish Meterological Institute (DMI) as well as simple simple analysis of the gauge data.
+Python Package for reading KMD files from The Danish Meterological Institute (DMI) as well as simple analysis of the gauge data.
 <b>To install:</b>
 
 ```
