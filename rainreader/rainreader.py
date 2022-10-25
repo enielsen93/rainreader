@@ -200,7 +200,20 @@ class KM2:
             # End time of this event
             j += 1
             eventidx += 1  # Change event index
-        return eventStartTime,
+        return eventStartTime, RDAgg
+
+    def summarize_years(self):
+        events_by_year = {}
+        events_start_time, RDAgg = km2.eventAccRain()
+        for event_i in range(len(events_start_time)):
+            year = dates.num2date(events_start_time[event_i]).year
+            if year in events_by_year:
+                events_by_year[year].append(RDAgg[event_i])
+            else:
+                events_by_year[year] = [RDAgg[event_i]]
+
+        accumulated_rain_by_year = {year: np.sum(events_by_year[year]) for year in events_by_year.keys()}
+        return events_by_year, accumulated_rain_by_year
 
     def plot_IDF(self, time_aggregate_periods, rain_gauge_duration = None):
         if rain_gauge_duration is None:
@@ -219,9 +232,23 @@ class KM2:
         plt.show()
 
 if __name__ == '__main__':
-    km2 = KM2(r"C:\Papirkurv\Viby_godkendte_1979_2018.txt")
+    km2 = KM2(r"C:\Users\ELNN\OneDrive - Ramboll\Documents\Aarhus Vand\Kongelund og Marselistunnel\MIKE\02_RAIN\Viby_godkendte_1979_2018.txt")
     gaugetime,gaugeint = km2.gaugetime,km2.gaugeint
-    print(gaugetime[109:113])
-    print(gaugeint[109:113])
-    a,b = km2.rainStatistics()
+    # print(gaugetime[109:113])
+    # print(gaugeint[109:113])
+    # a,b = km2.rainStatistics()
+    events_start_time, RDAgg = km2.eventAccRain()
+    events_by_year, accumulated_rain_by_year = km2.summarize_years()
+
+    import matplotlib.pyplot as plt
+    events_5mm_per_year = {year: np.sum([1 for acc_rain in events_by_year[year] if acc_rain >= 5]) for year in events_by_year.keys()}
+    mean_accumulated_rain = np.sum(accumulated_rain_by_year.values()) / 38
+    mean_5mm_events = np.sum([1 for acc_rain in RDAgg if acc_rain >= 5]) / 38
+
+    plt.bar(accumulated_rain_by_year.keys(), accumulated_rain_by_year.values())
+    plt.hlines(mean_accumulated_rain, np.min(events_by_year.keys()), np.max(events_by_year.keys()))
+
+    plt.figure()
+    plt.bar(events_5mm_per_year.keys(), events_5mm_per_year.values())
+    plt.hlines(mean_5mm_events, np.min(events_by_year.keys()), np.max(events_by_year.keys()))
     print("Break")
