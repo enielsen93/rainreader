@@ -18,7 +18,7 @@ plt.step(rain.gaugetime, rain.gaugeint)
 plt.show()
 ```
 
-<b>Function plot_IDF and rain_statistics are only available if python version is >3</b>
+<b>Function plot_IDF and rain_statistics are only available if python version is >3 <i>or</i> Pandas version is >0.24</b>
 ```
 plt.figure()
 rain.plot_IDF(time_aggregate_periods = [10, 30, 60, 120, 360, 1080])
