@@ -142,10 +142,15 @@ class KM2:
         self.rain_gauge_duration = (gaugetime[-1]-gaugetime[0])/365.25
 
     @property
-    def timeseries(self):
+    def timeseries(self, gaugetime = None, gaugeint = None):
+        if gaugetime == None:
+            gaugetime = self.gaugetime
+        if gaugeint == None:
+            gaugeint = self.gaugeint
+
         if self.__timeseries is None:
             import pandas as pd
-            self.__timeseries = pd.Series(self.gaugeint, index = dates.num2date(self.gaugetime))
+            self.__timeseries = pd.Series(gaugeint, index = dates.num2date(gaugetime))
         return self.__timeseries
 
     def rainStatistics(self, time_aggregate_periods = [], merge_period = None):
@@ -204,7 +209,7 @@ class KM2:
 
     def summarize_years(self):
         events_by_year = {}
-        events_start_time, RDAgg = km2.eventAccRain()
+        events_start_time, RDAgg = self.eventAccRain()
         for event_i in range(len(events_start_time)):
             year = dates.num2date(events_start_time[event_i]).year
             if year in events_by_year:
@@ -231,24 +236,47 @@ class KM2:
         plt.grid()
         plt.show()
 
+    def pad_timeseries_with_zeros(self, gaugetime = None, gaugeint = None, pad_length = 1440):
+        if gaugetime == None:
+            gaugetime = self.gaugetime
+        if gaugeint == None:
+            gaugeint = self.gaugeint
+
+        timeskips_i = np.where(np.diff(gaugetime) > (2.0 / 24 * 60))[0]
+
+        gaugetime_padded = gaugetime[:]
+
+        for timeskip in timeskips_i:
+            additional_time = np.arange(gaugetime[timeskip], gaugetime[timeskip + 1], (1.0 / 24 / 60))
+            # additional_intensity = additional_time*0
+            gaugetime_padded = np.concatenate((gaugetime_padded, additional_time[:pad_length]))
+        gaugeint_padded = np.pad(gaugeint, (0, len(gaugetime_padded) - len(gaugeint)), 'constant', constant_values=0)
+
+        sort_idx = np.argsort(gaugetime_padded)
+        gaugetime_padded = gaugetime_padded[sort_idx]
+        gaugeint_padded = gaugeint_padded[sort_idx]
+
+        return (gaugetime_padded, gaugeint_padded)
+
 if __name__ == '__main__':
     km2 = KM2(r"C:\Users\ELNN\OneDrive - Ramboll\Documents\Aarhus Vand\Kongelund og Marselistunnel\MIKE\02_RAIN\Viby_godkendte_1979_2018.txt")
     gaugetime,gaugeint = km2.gaugetime,km2.gaugeint
     # print(gaugetime[109:113])
     # print(gaugeint[109:113])
     # a,b = km2.rainStatistics()
+
     events_start_time, RDAgg = km2.eventAccRain()
-    events_by_year, accumulated_rain_by_year = km2.summarize_years()
-
-    import matplotlib.pyplot as plt
-    events_5mm_per_year = {year: np.sum([1 for acc_rain in events_by_year[year] if acc_rain >= 5]) for year in events_by_year.keys()}
-    mean_accumulated_rain = np.sum(accumulated_rain_by_year.values()) / 38
-    mean_5mm_events = np.sum([1 for acc_rain in RDAgg if acc_rain >= 5]) / 38
-
-    plt.bar(accumulated_rain_by_year.keys(), accumulated_rain_by_year.values())
-    plt.hlines(mean_accumulated_rain, np.min(events_by_year.keys()), np.max(events_by_year.keys()))
-
-    plt.figure()
-    plt.bar(events_5mm_per_year.keys(), events_5mm_per_year.values())
-    plt.hlines(mean_5mm_events, np.min(events_by_year.keys()), np.max(events_by_year.keys()))
+    # events_by_year, accumulated_rain_by_year = km2.summarize_years()
+    #
+    # import matplotlib.pyplot as plt
+    # events_5mm_per_year = {year: np.sum([1 for acc_rain in events_by_year[year] if acc_rain >= 5]) for year in events_by_year.keys()}
+    # mean_accumulated_rain = np.sum(accumulated_rain_by_year.values()) / 38
+    # mean_5mm_events = np.sum([1 for acc_rain in RDAgg if acc_rain >= 5]) / 38
+    #
+    # plt.bar(accumulated_rain_by_year.keys(), accumulated_rain_by_year.values())
+    # plt.hlines(mean_accumulated_rain, np.min(events_by_year.keys()), np.max(events_by_year.keys()))
+    #
+    # plt.figure()
+    # plt.bar(events_5mm_per_year.keys(), events_5mm_per_year.values())
+    # plt.hlines(mean_5mm_events, np.min(events_by_year.keys()), np.max(events_by_year.keys()))
     print("Break")
