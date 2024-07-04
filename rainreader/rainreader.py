@@ -62,17 +62,17 @@ class KM2:
                         # Remember that the next line will be the first registrered intensity for the event, so the first measurement can be excluded
                         # It's not rejected, so don't reject the following measurements
                         eventrejected = False
-                        if timedelay > 0:
-                            gaugeint.extend([0])
-                            gaugetime.extend([eventstarttime[-1] - 1. / 60 / 24])
-                            timedelay = 0
+
+                        gaugeint.extend([0])
+                        gaugetime.extend([eventstarttime[-1]])
+                        timedelay = 0
                 # If the line does not contain information about the event, it must contain intensities.
                 # If it's not rejected, read the intensities
                 elif not eventrejected:
                     ints = list(map(float, gaugeintRE.findall(line)))
                     # Exclude the first measurement
                     gaugeint.extend(ints)
-                    gaugetime.extend((np.arange(0, len(ints), dtype=float) +
+                    gaugetime.extend((np.arange(0+1, len(ints)+1, dtype=float) +
                                       timedelay) / 60 / 24 + eventstarttime[-1])
                     timedelay += len(ints)
 
@@ -259,7 +259,7 @@ class KM2:
         return (gaugetime_padded, gaugeint_padded)
 
 if __name__ == '__main__':
-    km2 = KM2(r"C:\Users\ELNN\OneDrive - Ramboll\Documents\Aarhus Vand\Kongelund og Marselistunnel\MIKE\02_RAIN\Viby_godkendte_1979_2018.txt")
+    km2 = KM2(r"C:\Papirkurv\bob2_OK.kmd")
     gaugetime,gaugeint = km2.gaugetime,km2.gaugeint
     # print(gaugetime[109:113])
     # print(gaugeint[109:113])
