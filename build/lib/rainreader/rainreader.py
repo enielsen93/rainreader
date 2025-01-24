@@ -82,9 +82,9 @@ class KM2:
                 if type(date_criteria[i]) is datetime.datetime:
                     date_criteria_dates[i] = dates.date2num(date_criteria[i])
                 elif type(date_criteria[i]) is str:
-                    date_criteria_dates[i] = dates.date2num(dateutil.parser.parse(date_criteria[i]))
+                    date_criteria_dates[i] = dates.date2num(dateutil.parser.parse(date_criteria[i], dayfirst = True))
                 else:
-                    date_criteria_dates[i] = dates.date2num(dateutil.parser.parse(date_criteria[i]))
+                    date_criteria_dates[i] = dates.date2num(dateutil.parser.parse(date_criteria[i], dayfirst = True))
 
             start_i = bisect.bisect_left(gaugetime, date_criteria_dates[0])
             stop_i = bisect.bisect_right(gaugetime, date_criteria_dates[1])
