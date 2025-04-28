@@ -9,7 +9,7 @@ from setuptools import setup
 
 setup(
     name='rainreader',
-    version='1.2.3',    
+    version='1.2.4',    
     description='Python Package for reading KMD files from The Danish Meterological Institute (DMI) as well as simple simple analysis for the data',
     url='https://github.com/enielsen93/rainreader',
     author='Emil Nielsen',

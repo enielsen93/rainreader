@@ -77,14 +77,25 @@ class KM2:
                     timedelay += len(ints)
 
         if date_criteria:
+            def parse_danish_date(date_str):
+                # Split by any non-digit characters.
+                tokens = re.split(r'\D+', date_str)
+                tokens = [token for token in tokens if token]  # remove empties
+
+                # If the first token has 4 digits, we assume it's an ISO-style date (year first)
+                if tokens and len(tokens[0]) == 4:
+                    return dateutil.parser.parse(date_str, dayfirst=False)
+                else:
+                    return dateutil.parser.parse(date_str, dayfirst=True)
+
             date_criteria_dates = [None, None]
             for i in range(len(date_criteria)):
                 if type(date_criteria[i]) is datetime.datetime:
                     date_criteria_dates[i] = dates.date2num(date_criteria[i])
                 elif type(date_criteria[i]) is str:
-                    date_criteria_dates[i] = dates.date2num(dateutil.parser.parse(date_criteria[i], dayfirst = True))
+                    date_criteria_dates[i] = dates.date2num(parse_danish_date(date_criteria[i]))
                 else:
-                    date_criteria_dates[i] = dates.date2num(dateutil.parser.parse(date_criteria[i], dayfirst = True))
+                    date_criteria_dates[i] = dates.date2num(parse_danish_date(date_criteria[i]))
 
             start_i = bisect.bisect_left(gaugetime, date_criteria_dates[0])
             stop_i = bisect.bisect_right(gaugetime, date_criteria_dates[1])
@@ -260,12 +271,12 @@ class KM2:
 
 if __name__ == '__main__':
     km2 = KM2(r"C:\Papirkurv\bob2_OK.kmd")
-    gaugetime,gaugeint = km2.gaugetime,km2.gaugeint
+    # gaugetime,gaugeint = km2.gaugetime,km2.gaugeint
     # print(gaugetime[109:113])
     # print(gaugeint[109:113])
     # a,b = km2.rainStatistics()
 
-    events_start_time, RDAgg = km2.eventAccRain()
+    # events_start_time, RDAgg = km2.eventAccRain()
     # events_by_year, accumulated_rain_by_year = km2.summarize_years()
     #
     # import matplotlib.pyplot as plt

@@ -1,13 +1,11 @@
-Metadata-Version: 1.1
+Metadata-Version: 2.1
 Name: rainreader
-Version: 1.2.3
+Version: 1.2.4
 Summary: Python Package for reading KMD files from The Danish Meterological Institute (DMI) as well as simple simple analysis for the data
 Home-page: https://github.com/enielsen93/rainreader
 Author: Emil Nielsen
 Author-email: enielsen93@hotmail.com
 License: BSD 2-clause
-Description: UNKNOWN
-Platform: UNKNOWN
 Classifier: Development Status :: 1 - Planning
 Classifier: Intended Audience :: Science/Research
 Classifier: License :: OSI Approved :: BSD License
